@@ -1,0 +1,173 @@
+Theoretical emulator device
+
+WIK8
+  - high speed registers:
+    - Pcc
+    - Acc
+    - Bak
+    - Stk
+    - Lst
+    - fl0
+    - fl1
+  
+  - All registers are 32 bit unsigned integers
+    - Pcc (R / W) : Program counter, increments after every instruction is completed
+    - Acc (R / W) : A high speed register used for fast mathmatical calculations,
+                     this is the only register that supports math
+    - Bak (_ / _) : A high speed back up register, used for saving or swapping with
+                     the value inside of the acc
+    - Stk (R / W) : The value inside of Stk points to a space in cache and memory
+    - Lst (R / _) : The value inside of Lst is the value that is CURRENTLY inside of
+                     the last register that was used in an instruction
+    - flx (R / W) : Flag registers, the computer will store things automatically inside
+                     of these
+
+  - Address Space:
+    - [0x0, 0x8), 0x7] - first 8 slots of ram is keyboard input in order
+                          W A S D I J K L
+    - [0x8, 0x28), 0x27] - 32 slots of mid speed memory
+    - [0x28, 0x68), 0x67] - 64 slots of low speed memory
+    - !(Potential to add a fake "hard disk" with extremely slow speeds)
+
+  - Cycle definition:
+    - One cycle is 16 milliseconds or 1 / 60th of a second
+    - If something takes two cycles it should take 32 milliseconds to complete
+    - One instruction should happen on a consistent clock of 16 milliseconds
+       this means that if an instruction begins at 0 milliseconds, another
+       instruction will be executed at 16 milliseconds, and then another
+       instruction at 32 milliseconds. Assuming this "instruction" i am
+       talking about only takes one cycle to complete. Basically the cycle
+       timer must reset at the same time the instruction is dispatched.
+       Meaing that something will happen every 16 milliseconds on the dot.
+
+  - Labels:
+    - labels are simply just a way to jump to areas of code but there is two
+       ways to get to them, one way is to use a jump command and another is to
+       use the fnc and ret command. the first way simply just offsets the pcc
+       to where that label is at. The second way however is more a function style,
+       where when you call fnc <offset>, it will record the pcc into fl1. When you
+       use the ret command, it will set the value of the pcc to fl1. This means that
+       you basically jump execution, but its a high speed method of optimizing code.
+       Registers and ram could let you have parameters and return values to a function.
+       Something like in the code that when you call the function, whatever value is in
+       0x20 is added to the accumulator 4 times.
+    - Labels describe to the compiler what to put after a jump command, the jump commands take
+       an offset, so jmp lab would comvert to jmp `number` where `number` is what we set
+       the pcc to. The compiler will determine this offset for you
+
+  - Instruction Signing:
+    - Every instruction in the emulator can be described in a length two hex number,
+       such as any number between 0x00 - 0xFF. This means that the emulator has a potential
+       255 instruction set.
+    - The instruction format is such:
+      - 0xInstruction 0xArg1 0xArg2 Where:
+        - 0xInstruction is 0x00 Long
+        - If 0xArg1 is a NUM then than its 8 hexes long (0xFFFFFFFF)
+        - If 0xArg1 is a register it also 0x00 long (2 hexes)
+      - Examples
+        - 0x08 0x000000FF 0x00
+        - 0x09 0xFF0FF000 0x000000FF
+        - 0x01
+        - 0x05 0x5
+
+  - Instructions !(Fun):
+    - NOP             - No op instruction -
+    - ZER <DST>       - Zero out the value of <dst>
+    - MVI <NUM> <DST> - Move integer - Move the constant value of <num> into the register <dst>
+    - MOV <DST> <DST> - Move register - Move the value in <dst> into the value of <dst>
+    - ADI <NUM>       - Add integer - Add the value of <num> to the accumulator
+    - ADD <DST>       - Add register - Add the value of <dst> to the accumulator
+    - SBI <NUM>       - Sub integer - Subtract the value of <num> from the accumulator
+    - SUB <DST>       - Sub register - Subtract the value of <dst> from the accumulator
+    - SWP             - Swap - Swap the values of acc and bak
+    - SAV             - Save - Save the value of acc into bak
+    - JMP <OFF>       - Jump - Set the pcc to OFF ( The compiler will be made to calculate this for you )
+    - JEZ <OFF>       - Jump if equal to 0 - Jump to offset if acc == 0
+    - JNZ <OFF>       - Jump if not 0 - Jump to offset if acc != 0
+    - JGZ <OFF>       - Jump if greater than 0 - Jump to offset if acc > 0
+    - CEI <NUM>       - Compare equal to - If acc == num then set the lowest order bit in fl0 to 1 else 0
+    - CNI <NUM>       - Compare not equal to - If acc != num then set the lowest order bit in fl0 to 1 else 0
+    - CGI <NUM>       - Compare greater than - If acc > num then set the lowest order bit in fl0 to 1 else 0
+    - CLI <NUM>       - Compare less than - If acc < num then set the lowest order bit in fl0 to 1 else 0
+    - CET <DST>       - Compare equal to - If acc == *dst then set the lowest order bit in fl0 to 1 else 0
+    - CNT <DST>       - Compare not equal to - If acc != *dst then set the lowest order bit in fl0 to 1 else 0
+    - CGT <DST>       - Compare greater than - If acc > *dst then set the lowest order bit in fl0 to 1 else 0
+    - CLT <DST>       - Compare less than - If acc < *dst then set the lowest order bit in fl0 to 1 else 0
+    - PSH             - Push - Move the value of the accumulator into the memory address at STK
+    - POP             - Pop - Move the value at the memory address at STK into the accumulator
+    - INC             - Increment - Increment the stk by one
+    - DEC             - Decrement - Decrement the stk by one
+    - PNC             - Shorthand for PSH and INC (saves cycles)
+    - FNC <OFF>       - Function - Save the value of pcc in fl1 and jumps to offset
+    - RET             - Return - Set the value of pcc to fl1, acts as a fast return statement
+
+  - op table:
+
+    REG | OPCODE | CANREAD | CANWRITE | CYCLES
+
+    pcc |  0x03  |   yes   |    yes   |   1
+    acc |  0x04  |   yes   |    yes   |   1
+    bak |  0x05  |   no    |    no    |   1
+    stk |  0x06  |   yes   |    yes   |   1
+    lst |  0x07  |   yes   |    no    |   1
+    fl0 |  0x08  |   yes   |    yes   |   1
+    fl1 |  0x09  |   yes   |    yes   |   1
+
+    ( mem range is [x, y) non inclusive ) 
+    MEM   | OPCODE RANGE | CANREAD | CANWRITE | CYCLESTOWRITE | CYCLESTOREAD
+    
+    kbi   |    0x0 0x7   |   yes   |    no    |       -       |       1
+    hsr   |    0x8 0x27  |   yes   |    yes   |       3       |       2
+    lsr   |    0x28 0x67 |   yes   |    yes   |       5       |       4
+
+    INST | NUM OF ARGUMETS | ARG1TPYE | ARG2TYPE | OPCODE | CYCLES
+
+    NOP  |        0        |     -    |     -    |  0x10  |    1
+    ZER  |        1        |    DST   |     -    |  0x11  |    1
+    MVI  |        2        |    NUM   |    DST   |  0x12  |    1
+    MOV  |        2        |    DST   |    DST   |  0x13  |    1
+    ADI  |        1        |    NUM   |     -    |  0x14  |    1
+    ADD  |        1        |    DST   |     -    |  0x15  |    1
+    SBI  |        1        |    NUM   |     -    |  0x16  |    1
+    SUB  |        1        |    DST   |     -    |  0x17  |    1
+    SWP  |        0        |     -    |     -    |  0x18  |    1
+    SAV  |        0        |     -    |     -    |  0x19  |    1
+    JMP  |        1        |    OFF   |     -    |  0x1A  |    1
+    JEZ  |        1        |    OFF   |     -    |  0x1B  |    1
+    JNZ  |        1        |    OFF   |     -    |  0x1C  |    1
+    JGZ  |        1        |    OFF   |     -    |  0x1D  |    1
+    CEI  |        1        |    NUM   |     -    |  0x1E  |    2
+    CNI  |        1        |    NUM   |     -    |  0x1F  |    2
+    CGI  |        1        |    NUM   |     -    |  0x20  |    2
+    CLI  |        1        |    NUM   |     -    |  0x21  |    2
+    CET  |        1        |    DST   |     -    |  0x22  |    2
+    CNT  |        1        |    DST   |     -    |  0x23  |    2
+    CGT  |        1        |    DST   |     -    |  0x24  |    2
+    CLT  |        1        |    DST   |     -    |  0x25  |    2
+    PSH  |        0        |     -    |     -    |  0x26  |    2
+    POP  |        0        |     -    |     -    |  0x27  |    2
+    INC  |        0        |     -    |     -    |  0x28  |    1
+    DEC  |        0        |     -    |     -    |  0x29  |    1
+    PNC  |        0        |     -    |     -    |  0x2A  |    2
+    FNC  |        1        |    OFF   |     -    |  0x2B  |    2
+    RET  |        0        |     -    |     -    |  0x2C  |    1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
