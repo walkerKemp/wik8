@@ -103,23 +103,24 @@ WIK8 - 3mhz
     jmp | 0x2a | off |  -  | 1
     jez | 0x2b | off |  -  | 1
     jnz | 0x2c | off |  -  | 1
-    jlz | 0x2d | off |  -  | 1
-    cei | 0x2e | num |  -  | 2
-    cni | 0x2f | num |  -  | 2
-    cgi | 0x30 | num |  -  | 2
-    cli | 0x31 | num |  -  | 2
-    cet | 0x32 | off |  -  | 2
-    cnt | 0x33 | off |  -  | 2
-    cgt | 0x34 | off |  -  | 2
-    clt | 0x35 | off |  -  | 2
-    psh | 0x36 | dst |  -  | 1
-    pop | 0x37 | dst |  -  | 1
-    inc | 0x38 |  -  |  -  | 1
-    dec | 0x39 |  -  |  -  | 1
-    fnc | 0x3a | off |  -  | 1
-    ret | 0x3b |  -  |  -  | 1
-    rsi | 0x3c | num | num | 1
-    rsd | 0x3d | num | dst | 1
+    jgz | 0x2d | off |  -  | 1
+    jlz | 0x2e | off |  -  | 1
+    cei | 0x2f | num |  -  | 2
+    cni | 0x30 | num |  -  | 2
+    cgi | 0x31 | num |  -  | 2
+    cli | 0x32 | num |  -  | 2
+    cet | 0x33 | off |  -  | 2
+    cnt | 0x34 | off |  -  | 2
+    cgt | 0x35 | off |  -  | 2
+    clt | 0x36 | off |  -  | 2
+    psh | 0x37 | dst |  -  | 1
+    pop | 0x38 | dst |  -  | 1
+    inc | 0x39 |  -  |  -  | 1
+    dec | 0x3a |  -  |  -  | 1
+    fnc | 0x3b | off |  -  | 1
+    ret | 0x3c |  -  |  -  | 1
+    rsi | 0x3d | num | num | 1
+    rsd | 0x3e | num | dst | 1
     rai | 0x3f | dst | num | 1
     rad | 0x40 | dst | dst | 1
     kil | 0x41 |  -  |  -  | 1
