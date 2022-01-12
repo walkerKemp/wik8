@@ -18,7 +18,7 @@ instructions = {
   "nop": ([], 0x10),
   "zer": ([TYPES.DST], 0x11),
   "mvi": ([TYPES.NUM, TYPES.DST], 0x12),
-  "mov": ([TYPES.NUM, TYPES.DST], 0x13),
+  "mov": ([TYPES.DST, TYPES.DST], 0x13),
   "adi": ([TYPES.NUM], 0x14),
   "add": ([TYPES.DST], 0x15),
   "sbi": ([TYPES.NUM], 0x16),

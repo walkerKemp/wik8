@@ -1,0 +1,21 @@
+mvi 11 stk
+mvi 500 acc
+psh
+dec
+mvi 10 acc
+psh
+mvi 6 acc
+start:
+  sbi 1
+  jez end
+  sav
+  mvi 10 stk
+  pop
+  mov acc fl0
+  inc
+  pop
+  sub fl0
+  psh
+  swp
+  jmp start
+end:
