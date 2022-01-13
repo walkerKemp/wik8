@@ -1,409 +1,313 @@
 use std::ops::Range;
-pub enum Event {
-  Success,
-  InvalidDst,
-  InvalidStk,
-  Failure,
-}
+
+const MAXMEM: i32 = 96006;
 
 pub struct Emulator {
-  pub rom: Vec<u32>,
-  pub running: bool,
-  pub finished: bool,
+  pub is_running: bool,
+  pub is_killed: bool,
 
-  pub pcc: u32,
-  pub acc: u32,
-  pub bak: u32,
-  pub stk: u32,
-  pub lst: u32,
-  pub fl0: u32,
-  pub fl1: u32,
-
-  pub mem: [u32; 0x67],
-  pub kbi_range: Range<usize>,
-  pub hsr_range: Range<usize>,
-  pub lsr_range: Range<usize>,
+  pub pcc: i32,
+  pub acc: i32,
+  pub bak: i32,
+  pub stk: i32,
+  pub fl0: i32,
+  pub fl1: i32,
+  pub mem: [i32; MAXMEM as usize],
+  pub rom_range: Range<i32>,
+  pub kbi_range: Range<i32>,
+  pub mos_range: Range<i32>,
+  pub ram_range: Range<i32>,
+  pub mem_range: Range<i32>,
 }
 
+
 impl Emulator {
-  pub fn new(rom: Vec<u32>) -> Self {
-    Self {
-      rom,
-      running: false,
-      finished: false,
+  pub fn new(rom: &Vec<i32>) -> Self {
+    let mut s = Self {
+      is_running: false,
+      is_killed: false,
+      pcc: 0,
+      acc: 0,
+      bak: 0,
+      stk: 32005,
+      fl0: 0,
+      fl1: 0,
+      mem: [0; MAXMEM as usize],
+      rom_range: 0..32000,
+      kbi_range: 32000..32002,
+      mos_range: 32002..32005,
+      ram_range: 32005..96006,
+      mem_range: 0..MAXMEM,
+    };
 
-      pcc: 0u32,
-      acc: 0u32,
-      bak: 0u32,
-      stk: 0u32,
-      lst: 0u32,
-      fl0: 0u32,
-      fl1: 0u32,
+    for i in 0..rom.len() {
+      if !s.rom_range.contains(&(i as i32)) {
+        panic!(" [!] Rom is too big");
+      }
 
-      mem: [0u32; 0x67],
-      kbi_range: 0x00..0x08,
-      hsr_range: 0x08..0x28,
-      lsr_range: 0x28..0x68,
+      s.mem[i] = rom[i];
     }
+
+    s
   }
 
-  pub fn do_cycle(&mut self) -> Event {
-    if self.finished {
-      return Event::Success;
-    }
+  pub fn cycle(&mut self) {
+    let inst = self.next();
 
-    let cur_inst = self.next();
-
-    match cur_inst {
-      0x10 => { Event::Success },
-      0x11 => { 
-        let dst = self.next();
-        self.lst = *self.get_register(dst);
-        *self.get_register(dst) = 0;
-        Event::Success
-      },
-      0x12 => {
-        let num = self.next();
-        let dst = self.next();
-        
-        if !self.can_write(dst) {
-          self.running = false;
-          return Event::InvalidDst;
-        }
-
-        self.lst = *self.get_register(dst);
-        *self.get_register(dst) = num;
-        Event::Success
-      },
-      0x13 => {
-        let dst1 = self.next();
-        let dst2 = self.next();
-
-        if !self.can_read(dst1) || !self.can_write(dst2) {
-          self.running = false;
-          return Event::InvalidDst;
-        }
-
-        self.lst = *self.get_register(dst2);
-        *self.get_register(dst2) = *self.get_register(dst1);
-        Event::Success
-      },
-      0x14 => {
-        let num = self.next();
-        self.acc += num;
-        self.lst = self.acc;
-        Event::Success
-      },
-      0x15 => {
-        let dst = self.next();
-        
-        if !self.can_read(dst) {
-          self.running = false;
-          return Event::InvalidDst;
-        }
-
-        self.acc += *self.get_register(dst);
-        self.lst = self.acc;
-        Event::Success
-      },
-      0x16 => {
-        let num = self.next();
-        self.acc -= num;
-        self.lst = self.acc;
-        Event::Success
-      },
-      0x17 => {
-        let dst = self.next();
-
-        if !self.can_read(dst) {
-          self.running = false;
-          return Event::InvalidDst;
-        }
-
-        self.acc -= *self.get_register(dst);
-        self.lst = self.acc;
-        Event::Success
-      },
-      0x18 => {
-        let temp = self.acc;
-        self.acc = self.bak;
-        self.bak = temp;
-        Event::Success
-      },
-      0x19 => {
-        self.bak = self.acc;
-        Event::Success
-      },
-      0x1A => {
-        let off = self.next();
-        self.pcc = off;
-        Event::Success
-      },
-      0x1B => {
-        let off = self.next();
-
-        if self.acc == 0 {
-          self.pcc = off;
-        }
-
-        Event::Success
-      },
-      0x1C => {
-        let off = self.next();
-
-        if self.acc != 0 {
-          self.pcc = off;
-        }
-
-        Event::Success
-      },
-      0x1D => {
-        let off = self.next();
-
-        if self.acc > 0 {
-          self.pcc = off;
-        }
-
-        Event::Success
-      },
-      0x1E => {
-        let num = self.next();
-
-        if self.acc == num {
-          self.fl0 = 1;
-        }
-
-        Event::Success
-      },
-      0x1F => {
-        let num = self.next();
-
-        if self.acc != num {
-          self.fl0 = 1;
-        }
-
-        Event::Success
-      },
-      0x20 => {
-        let num = self.next();
-
-        if self.acc > num {
-          self.fl0 = 1;
-        }
-
-        Event::Success
-      },
+    match inst {
+      0x20 => {},
       0x21 => {
-        let num = self.next();
-
-        if self.acc < num {
-          self.fl0 = 1;
+        let dst = self.next();
+        if self.can_mut(&dst) {
+          *self.get_register(&dst) = 0;
         }
-
-        Event::Success
       },
       0x22 => {
         let dst = self.next();
-        
-        if !self.can_read(dst) {
-          self.running = false;
-          return Event::InvalidDst;
+        let num = self.next();
+        if self.can_mut(&dst) {
+          *self.get_register(&dst) = num;
         }
-        
-        if self.acc == *self.get_register(dst) {
-          self.fl0 = 1;
-        }
-
-        Event::Success
-      },
+      }
       0x23 => {
-        let dst = self.next();
-
-        if !self.can_read(dst) {
-          self.running = false;
-          return Event::InvalidDst;
-        }
-
-        if self.acc != *self.get_register(dst) {
-          self.fl0 = 1;
-        }
-
-        Event::Success
+        let dst1 = self.next();
+        let dst2 = self.next();
+        if self.can_mut(&dst1) && self.can_mut(&dst2) {
+          *self.get_register(&dst1) = *self.get_register(&dst2);
+        } 
       },
       0x24 => {
-        let dst = self.next();
-
-        if !self.can_read(dst) {
-          self.running = false;
-          return Event::InvalidDst;
-        }
-
-        if self.acc > *self.get_register(dst) {
-          self.fl0 = 1;
-        }
-
-        Event::Success
+        self.acc += self.next();
       },
       0x25 => {
         let dst = self.next();
-
-        if !self.can_read(dst) {
-          self.running = false;
-          return Event::InvalidDst;
+        if self.can_mut(&dst) {
+          self.acc += *self.get_register(&dst);
         }
-
-        if self.acc < *self.get_register(dst) {
-          self.fl0 = 1;
-        }
-
-        Event::Success
       },
       0x26 => {
-        // self.mem[self.stk] = self.acc
-        if self.kbi_range.contains(&(self.stk as usize)) {
-          self.running = false;
-          return Event::InvalidStk;
-        }
-
-        if !self.lsr_range.contains(&(self.stk as usize)) &&
-          !self.hsr_range.contains(&(self.stk as usize)) {
-          self.running = false;
-          return Event::InvalidStk;
-        }
-
-        self.mem[self.stk as usize] = self.acc;
-        self.acc = 0;
-        Event::Success
+        self.acc -= self.next();
       },
       0x27 => {
-        if self.kbi_range.contains(&(self.stk as usize)) {
-          self.running = false;
-          return Event::InvalidStk;
+        let dst = self.next();
+        if self.can_mut(&dst) {
+          self.acc -= *self.get_register(&dst);
         }
-
-        if !self.lsr_range.contains(&(self.stk as usize)) &&
-          !self.hsr_range.contains(&(self.stk as usize)) {
-          self.running = false;
-          return Event::InvalidStk;
-        }
-
-        self.acc = self.mem[self.stk as usize];
-        Event::Success
       },
       0x28 => {
-        self.stk += 1;
-        Event::Success
+        let temp = self.acc;
+        self.acc = self.bak;
+        self.bak = temp
       },
       0x29 => {
-        self.stk -= 1;
-        Event::Success
+        self.bak = self.acc;
       },
-      0x2A => {
-        if self.kbi_range.contains(&(self.stk as usize)) {
-          self.running = false;
-          return Event::InvalidStk;
-        }
-
-        if !self.lsr_range.contains(&(self.stk as usize)) &&
-          !self.hsr_range.contains(&(self.stk as usize)) {
-          self.running = false;
-          return Event::InvalidStk;
-        }
-
-        self.mem[self.stk as usize] = self.acc;
-        self.acc = 0;
-        self.stk += 1;
-        Event::Success
-      },
-      0x2B => {
+      0x2a => {
         let off = self.next();
-        
+        self.pcc = off;
+      },
+      0x2b => {
+        let off = self.next();
+        if self.acc == 0 {
+          self.pcc = off;
+        }
+      },
+      0x2c => {
+        let off = self.next();
+        if self.acc != 0 {
+          self.pcc = off;
+        }
+      },
+      0x2d => {
+        let off = self.next();
+        if self.acc > 0 {
+          self.pcc = off;
+        }
+      },
+      0x2e => {
+        let off = self.next();
+        if self.acc < 0 {
+          self.pcc = off;
+        }
+      },
+      0x2f => {
+        let num = self.next();
+        if self.acc == num {
+          self.fl0 |= 0b0000_0000_0000_0001;
+        } else {
+          self.fl0 &= 0b1111_1111_1111_1110;
+        }
+      },
+      0x30 => {
+        let num = self.next();
+        if self.acc != num {
+          self.fl0 |= 0b0000_0000_0000_0010;
+        } else {
+          self.fl0 &= 0b1111_1111_1111_1101;
+        }
+      },
+      0x31 => {
+        let num = self.next();
+        if self.acc > num {
+          self.fl0 |= 0b0000_0000_0000_0100;
+        } else {
+          self.fl0 &= 0b1111_1111_1111_1011;
+        }
+      },
+      0x32 => {
+        let num = self.next();
+        if self.acc < num {
+          self.fl0 |= 0b0000_0000_0000_1000;
+        } else {
+          self.fl0 &= 0b1111_1111_1111_0111;
+        }
+      },
+      0x33 => {
+        let dst = self.next();
+        if self.can_mut(&dst) {
+          if self.acc == *self.get_register(&dst) {
+            self.fl0 |= 0b0000_0000_0001_0000;
+          } else {
+            self.fl0 &= 0b1111_1111_1110_1111;
+          }
+        }
+      },
+      0x34 => {
+        let dst = self.next();
+        if self.can_mut(&dst) {
+          if self.acc != *self.get_register(&dst) {
+            self.fl0 |= 0b0000_0000_0010_0000;
+          } else {
+            self.fl0 &= 0b1111_1111_1101_1111;
+          }
+        }
+      },
+      0x35 => {
+        let dst = self.next();
+        if self.can_mut(&dst) {
+          if self.acc > *self.get_register(&dst) {
+            self.fl0 |= 0b0000_0000_0100_0000;
+          } else {
+            self.fl0 &= 0b1111_1111_1011_1111;
+          }
+        }
+      },
+      0x36 => {
+        let dst = self.next();
+        if self.can_mut(&dst) {
+          if self.acc < *self.get_register(&dst) {
+            self.fl0 |= 0b0000_0000_1000_0000;
+          } else {
+            self.fl0 &= 0b1111_1111_0111_1111;
+          }
+        }
+      },
+      0x37 => {
+        let num = self.next();
+        if self.ram_range.contains(&self.stk) {
+          self.mem[self.stk as usize] = num;
+        } else {
+          panic!(" [!] Attempted write to invalid or read only memory.");
+        }
+      }
+      0x38 => {
+        let dst = self.next();
+        if self.can_mut(&dst) {
+          if self.ram_range.contains(&self.stk) {
+            self.mem[self.stk as usize] = *self.get_register(&dst);
+          } else {
+            panic!(" [!] Attempted write to invalid or read only memory.");
+          }
+        }
+      },
+      0x39 => {
+        let dst = self.next();
+        if self.can_mut(&dst) {
+          if self.mem_range.contains(&self.stk) {
+            *self.get_register(&dst) = self.mem[self.stk as usize];
+          } else {
+            panic!(" [!] Attempted read from invalid memory.");
+          }
+        }
+      },
+      0x3a => {
+        self.stk += 1;
+      },
+      0x3b => {
+        self.stk -= 1;
+      },
+      0x3c => {
+        let off = self.next();
         self.fl1 = self.pcc;
         self.pcc = off;
-
-        Event::Success
       },
-      0x2C => {
-        if self.fl1 > self.rom.len() as u32 {
-          self.running = false;
-          return Event::Failure;
-        }
-
-        self.pcc = self.fl1;
-        Event::Success
+      0x3d => {
+        self.pcc = self.fl0;
+      },
+      0x3e | 0x3f | 0x40 | 0x41 => { unimplemented!(" [-] Rasterizer not implemented."); },
+      0x42 => {
+        self.is_killed = true;
       }
-      _ => panic!("Unreachable")
+      _ => panic!(" [!] Invalid opcode {}.", inst),
     }
   }
 
-  pub fn should_close(&mut self) -> bool {
-    let ret = self.pcc + 1 > self.rom.len() as u32;
-    if ret { self.finished = true; }
-    ret
-  }
-
-  pub fn next(&mut self) -> u32 {
-    let instruction = self.rom[self.pcc as usize];
-
-    if self.should_close() {
-      self.running = false;
-      return 0;
+  pub fn start(&mut self) {
+    if self.is_running {
+      panic!(" [!] Emulator is already running.");
     }
 
+    self.is_running = true;
+  }
+
+  pub fn next(&mut self) -> i32 {
+    if self.pcc < 0 {
+      panic!(" [!] Program counter cant be less than 0.");
+    }
+
+    let inst = self.mem[self.pcc as usize];
     self.pcc += 1;
-    instruction
+    inst
   }
 
-  pub fn is_done(&self) -> bool {
-    self.pcc as usize > self.rom.len()
+  pub fn peek(&self, offset: &i32) -> i32  {
+    if self.pcc + offset < 0 {
+      panic!(" [!] Invalid peek location {}", self.pcc + offset);
+    }
+
+    if !self.mem_range.contains(&(self.pcc + offset)){
+      panic!(" [!] Invalid peek location {}", self.pcc + offset);
+    }
+
+    self.mem[(self.pcc + offset) as usize]
   }
 
-  pub fn can_write(&self, op_code: u32) -> bool {
-    match op_code {
-      0x03 => return true,
-      0x04 => return true,
-      0x05 => return false,
-      0x06 => return true,
-      0x07 => return false,
-      0x08 => return true,
-      0x09 => return true,
-      _ => panic!("Invalid register opcode: {}", op_code),
+  pub fn can_mut(&self, reg: &i32) -> bool {
+    match reg {
+      0x10 | 0x11 | 0x13 | 0x14 | 0x15 => return true,
+      _ => return false,
     }
   }
 
-  pub fn can_read(&self, op_code: u32) -> bool {
-    match op_code {
-      0x03 => return true,
-      0x04 => return true,
-      0x05 => return false,
-      0x06 => return true,
-      0x07 => return true,
-      0x08 => return true,
-      0x09 => return true,
-      _ => panic!("Invalid register opcode: {}", op_code),
+  pub fn get_register(&mut self, reg: &i32) -> &mut i32 {
+    match reg {
+      0x10 => return &mut self.pcc,
+      0x11 => return &mut self.acc,
+      0x12 => return &mut self.bak,
+      0x13 => return &mut self.stk,
+      0x14 => return &mut self.fl0,
+      0x15 => return &mut self.fl1,
+      _ => panic!(" [!] Invalid register {}", reg)
     }
   }
 
-  pub fn get_register(&mut self, op_code: u32) -> &mut u32 {
-    match op_code {
-      0x03 => return &mut self.pcc,
-      0x04 => return &mut self.acc,
-      0x05 => return &mut self.bak,
-      0x06 => return &mut self.stk,
-      0x07 => return &mut self.lst,
-      0x08 => return &mut self.fl0,
-      0x09 => return &mut self.fl1,
-      _ => panic!("Invalid register opcode: {}", op_code)
-    }
-  }
-
-  pub fn debug_display_regs(&self) {
+  pub fn print_registers(&self) {
     println!(" pcc {}", self.pcc);
     println!(" acc {}", self.acc);
     println!(" bak {}", self.bak);
     println!(" stk {}", self.stk);
-    println!(" lst {}", self.lst);
     println!(" fl0 {}", self.fl0);
     println!(" fl1 {}", self.fl1);
+    println!("");
   }
 }

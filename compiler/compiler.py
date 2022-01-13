@@ -37,16 +37,17 @@ instructions = {
   "cgt": ([TYPES.DST], 0x35),
   "clt": ([TYPES.DST], 0x36),
   "psh": ([TYPES.DST], 0x37),
-  "pop": ([TYPES.DST], 0x38),
-  "inc": ([], 0x39),
-  "dec": ([], 0x3a),
-  "fnc": ([TYPES.OFF], 0x3b),
-  "ret": ([], 0x3c),
-  "rsi": ([TYPES.NUM, TYPES.NUM], 0x3d),
-  "rsd": ([TYPES.NUM, TYPES.DST], 0x3e),
-  "rai": ([TYPES.DST, TYPES.NUM], 0x3f),
-  "rad": ([TYPES.DST, TYPES.DST], 0x3f),
-  "kil": ([], 0x41)
+  "psi": ([TYPES.NUM], 0x38),
+  "pop": ([TYPES.DST], 0x39),
+  "inc": ([], 0x3a),
+  "dec": ([], 0x3b),
+  "fnc": ([TYPES.OFF], 0x3c),
+  "ret": ([], 0x3d),
+  "rsi": ([TYPES.NUM, TYPES.NUM], 0x3e),
+  "rsd": ([TYPES.NUM, TYPES.DST], 0x3f),
+  "rai": ([TYPES.DST, TYPES.NUM], 0x40),
+  "rad": ([TYPES.DST, TYPES.DST], 0x41),
+  "kil": ([], 0x42)
 }
 
 registers = {
@@ -101,7 +102,7 @@ class Lexer:
       if tok in instructions.keys():
         args, op_code = instructions[tok]
 
-        self.result.append(op_code.to_bytes(1, "big"))
+        self.result.append(op_code.to_bytes(4, "big"))
 
         for i in args:
           if i == TYPES.NUM:
@@ -158,7 +159,7 @@ class Lexer:
     if dst not in registers.keys():
       print_err_exit(f"./{self.file_name}:{x}:{y}: Expected register, found {dst}")
 
-    self.result.append(registers[dst].to_bytes(1, "big"))
+    self.result.append(registers[dst].to_bytes(4, "big"))
 
   def do_off(self):
     tok = self.next()
@@ -179,6 +180,7 @@ class Lexer:
           print_warn_exit(f"./{self.file_name}:{x}:{y}: Warning: Redefinition of label{tok[1]}")
 
         self.labels[tok[2].replace(":", "")] = i
+        self.tokens[i] = (tok[0], tok[1], "nop")
 
   @staticmethod
   def is_valid_label(lab):
@@ -186,6 +188,8 @@ class Lexer:
     return len(result) == 1
 
 def main():
+  _start_time = time()
+
   if len(argv) != 2:
     print("Invalid number of arguments")
     print_err_exit(f"USAGE: ./{__file__} <file_path>")
@@ -206,10 +210,8 @@ def main():
     for byte in lex.result:
       f.write(byte)
 
+  print(f"Compilation successful {round(time() - _start_time, 5)}s")
+
 if __name__ == "__main__":
-  start = time()
   main()
-  print(f"Compilation successful {round(time() - start, 5)}s")
-
-
 

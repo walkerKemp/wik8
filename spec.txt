@@ -26,9 +26,9 @@ WIK8 - 3mhz
                                 is stored
     - kbi [32000, 32001], 32002) - Read only one number used to store the state of the 8 keyboard
                                     input keys (w a s d i j k l)
-    - mos [32002, 32005], 32006) - Read only memory, three slots of memory used for mouse information,
+    - mos [32002, 32004], 32005) - Read only memory, three slots of memory used for mouse information,
                                     [32002] is mouse x, [32003] is mouse y, [32004] is mouse buttons
-    - ram [32002, 96002], 96003) - Random access memory, indexed by the stk registers, used for
+    - ram [32005, 96005], 96006) - Random access memory, indexed by the stk registers, used for
                                     anything the programmer can make
   - Instructions
     - nop             - No op
@@ -54,6 +54,7 @@ WIK8 - 3mhz
     - cnt <dst>       - Compare not equal to, set the 6th lowest bit in fl0 to 1 if acc != *dst
     - cgt <dst>       - Compare greater than, set the 7th lowest bit in fl0 to 1 if acc > *dst
     - clt <dst>       - Compare less than, set the 8th lowest bit in fl0 to 1 if acc < *dst
+    - psi <num>       - Push integer, Move the value of num into memory at stk location
     - psh <dst>       - Push, Move the value of dst to memory at stk location
     - pop <dst>       - Pop, Move the value of memory at stk location into dst
     - inc             - Increment, Increment stk by 1
@@ -85,7 +86,8 @@ WIK8 - 3mhz
     NAME | START | END | SPEED (cycles to access)
     rom  | 00    | 31999 | 1
     kbi  | 32000 | 32001 | 1
-    ram  | 32002 | 96002 | 2
+    mos  | 32002 | 32004 | 1
+    ram  | 32005 | 96005 | 2
 
   - Instructions
 
@@ -113,17 +115,18 @@ WIK8 - 3mhz
     cnt | 0x34 | off |  -  | 2
     cgt | 0x35 | off |  -  | 2
     clt | 0x36 | off |  -  | 2
-    psh | 0x37 | dst |  -  | 1
-    pop | 0x38 | dst |  -  | 1
-    inc | 0x39 |  -  |  -  | 1
-    dec | 0x3a |  -  |  -  | 1
-    fnc | 0x3b | off |  -  | 1
-    ret | 0x3c |  -  |  -  | 1
-    rsi | 0x3d | num | num | 1
-    rsd | 0x3e | num | dst | 1
-    rai | 0x3f | dst | num | 1
-    rad | 0x40 | dst | dst | 1
-    kil | 0x41 |  -  |  -  | 1
+    psi | 0x37 | num |  -  | 1
+    psh | 0x38 | dst |  -  | 1
+    pop | 0x39 | dst |  -  | 1
+    inc | 0x3a |  -  |  -  | 1
+    dec | 0x3b |  -  |  -  | 1
+    fnc | 0x3c | off |  -  | 1
+    ret | 0x3d |  -  |  -  | 1
+    rsi | 0x3e | num | num | 1
+    rsd | 0x3f | num | dst | 1
+    rai | 0x40 | dst | num | 1
+    rad | 0x41 | dst | dst | 1
+    kil | 0x42 |  -  |  -  | 1
 
   - Operand types
     - num : number of type integer

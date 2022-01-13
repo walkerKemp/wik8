@@ -1,22 +1,22 @@
-mvi stk 33000
-mvi acc 500
-psh acc
-inc
-mvi acc 10
-psh acc
+mvi stk 35000
+psi 500
+mvi stk 35001
+psi 10
 mvi acc 5
 
 start:
   jez end
-  swp
-  mvi stk 33000
+  sav
+  mvi stk 35000
   pop acc
-  inc
+  mvi stk 35001
   pop fl0
   sub fl0
-  dec
+  mvi stk 35000
   psh acc
+  swp
   sbi 1
   jmp start
 
 end:
+  kil
