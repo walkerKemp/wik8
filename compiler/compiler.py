@@ -73,12 +73,15 @@ class Lexer:
     self.tokens = []
     self.pointer = 0
     self.max_pointer = 0
+    self.constants = {}
+    self.macros = {}
     self.labels = {}
     self.result = []
 
   def compile(self):
-    self.generate_macros()
     self.tokenize()
+    self.generate_constants()
+    self.generate_macros()
     self.generate_labels()
     self.parse()
     return self.result
@@ -117,8 +120,83 @@ class Lexer:
       else:
         print_err_exit(f"./{self.file_name}:{x}:{y}: Unexpected token {tok}")
 
+  def generate_constants(self):
+    new_toks = []
+    self.pointer = 0
+    self.max_pointer = len(self.tokens)
+
+    while self.peek(1) != "\0":
+      row, col, inst = self.next()
+      if inst == "@const":
+        const_name = self.next()
+        if not self.is_valid_const(const_name[2]):
+          print_err_exit(f"./{self.file_name}:{const_name[0]}:{const_name[1]}: Invalid constant name {const_name[2]}")
+        const_value = self.next()
+        if not const_value[2].isdigit():
+          print_err_exit(f"./{self.file_name}:{const_value[0]}:{const_value[1]}: Invalid constant value, must be type number {const_value[2]}")
+        self.constants[const_name[2]] = int(const_value[2])
+      else:
+        new_toks.append((row, col, inst))
+
+    self.tokens = new_toks
+    self.pointer = 0
+    self.max_pointer = (len(self.tokens))
+
   def generate_macros(self):
-    pass
+    new_toks = []
+    self.pointer = 0
+    self.max_pointer = len(self.tokens)
+
+    while self.peek(1) != "\0":
+      x, y, inst = self.next()
+      if inst == "@macrodef":
+        macro = self.next()
+
+        if not self.is_valid_const(macro[2]):
+          print_err_exit(f"./{self.file_name}:{macro[0]}:{macro[1]}: Invalid macro name: {macro[2]}")
+
+        if macro[2] in self.constants.keys() or macro[2] in self.macros.keys():
+          print_err_exit(f"./{self.file_name}:{macro[0]}:{macro[2]}: Illegal redefinion of {macro[2]}")
+
+        save_pointer = self.pointer
+        end_block = None
+
+        while self.peek(1) != "\0":
+          x, y, inst = self.next()
+
+          if inst == "@macroend":
+            end_block = (self.pointer, (x, y, inst))
+            break
+
+        if end_block == None:
+          print(f"./{self.file_name}:{macro[0]}:{macro[1]}: Could not find end block for macro {macro[2]}")
+
+        captured_tokens = []
+
+        for i in range(save_pointer, self.pointer - 1):
+          captured_tokens.append(self.tokens[i])
+
+        self.pointer = save_pointer
+        self.macros[macro[2]] = captured_tokens
+      else:
+        if inst != "@macroend":
+          new_toks.append((x, y, inst))
+
+    self.tokens = new_toks
+    self.pointer = 0
+    self.max_pointer = len(self.tokens)
+
+    new_toks = []
+    while self.peek(1) != "\0":
+      x, y, inst = self.next()
+      if inst in self.macros.keys():
+        new_toks.extend(self.macros[inst])
+      else:
+        new_toks.append((x, y, inst))
+
+    self.tokens = new_toks
+    self.pointer = 0
+    self.max_pointer = len(self.tokens)
 
   def next(self):
     if self.pointer > self.max_pointer:
@@ -142,8 +220,11 @@ class Lexer:
 
     x, y, num = tok
 
-    if not num.isdigit():
+    if not num.isdigit() and num not in self.constants.keys():
       print_err_exit(f"./{self.file_name}:{x}:{y}: Expected number, found {num}")
+
+    if num in self.constants.keys():
+      num = self.constants[num]
 
     if int(num) > 2147483647:
       print_err_exit(f"./{self.file_name}:{x}:{y}: Number {num} is too big, must be within i32")
@@ -189,6 +270,11 @@ class Lexer:
   @staticmethod
   def is_valid_label(lab):
     result = re.findall("\A[a-z][a-z0-9]*:$", lab)
+    return len(result) == 1
+
+  @staticmethod
+  def is_valid_const(con):
+    result = re.findall("\A[a-z|_][a-z0-9|_]*$", con)
     return len(result) == 1
 
 def main():
