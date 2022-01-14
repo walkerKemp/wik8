@@ -13,7 +13,7 @@ class TYPES:
 
 instructions = {
   # inst: ([arg_list], op_code)
-  "nop": ([], 0x20),
+  "nop": ([], 0x00),
   "zer": ([TYPES.DST], 0x21),
   "mvi": ([TYPES.DST, TYPES.NUM], 0x22),
   "mov": ([TYPES.DST, TYPES.DST], 0x23),
@@ -36,8 +36,8 @@ instructions = {
   "cnt": ([TYPES.DST], 0x34),
   "cgt": ([TYPES.DST], 0x35),
   "clt": ([TYPES.DST], 0x36),
-  "psh": ([TYPES.DST], 0x37),
-  "psi": ([TYPES.NUM], 0x38),
+  "psi": ([TYPES.NUM], 0x37),
+  "psh": ([TYPES.DST], 0x38),
   "pop": ([TYPES.DST], 0x39),
   "inc": ([], 0x3a),
   "dec": ([], 0x3b),
@@ -77,6 +77,7 @@ class Lexer:
     self.result = []
 
   def compile(self):
+    self.generate_macros()
     self.tokenize()
     self.generate_labels()
     self.parse()
@@ -93,7 +94,7 @@ class Lexer:
           word += line[pointer_in_line]
           pointer_in_line += 1
         self.tokens.append((i, pointer_in_line - len(word), word))
-    self.max_pointer = len(self.tokens) - 1
+    self.max_pointer = len(self.tokens)
 
   def parse(self):
     while self.peek(1) != "\0":
@@ -115,6 +116,9 @@ class Lexer:
         pass
       else:
         print_err_exit(f"./{self.file_name}:{x}:{y}: Unexpected token {tok}")
+
+  def generate_macros(self):
+    pass
 
   def next(self):
     if self.pointer > self.max_pointer:

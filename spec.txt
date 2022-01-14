@@ -1,13 +1,10 @@
 Theoretical emulator device
 
-Thank you to tsoding, the motivation for this project
-  https://www.twitch.tv/tsoding
-
+Thank you to tsoding, the motivation for this project https://www.twitch.tv/tsoding
 WIK8 - 3mhz
   - High speed registers:
     - pcc
-    - acc
-    - bak
+    - acc bak
     - stk
     - fl0
     - fl1
@@ -92,7 +89,7 @@ WIK8 - 3mhz
   - Instructions
 
     NAME | OPCODE | OP1 | OP2 | SPEED
-    nop | 0x20 |  -  |  -  | 1
+    nop | 0x00 |  -  |  -  | 1
     zer | 0x21 | dst |  -  | 1
     mvi | 0x22 | dst | num | 1
     mov | 0x23 | dst | dst | 1

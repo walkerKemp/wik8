@@ -1,7 +1,6 @@
 mod emulator;
 mod files;
 
-use raylib::prelude::*;
 use std::{thread, time::Duration};
 
 fn main() {

@@ -1,22 +1,18 @@
-mvi stk 35000
-psi 500
-mvi stk 35001
-psi 10
-mvi acc 5
+mvi acc 10
+
+@macrodef test param
+  mvi param 50
+@endmacro
 
 start:
-  jez end
-  sav
-  mvi stk 35000
-  pop acc
-  mvi stk 35001
-  pop fl0
-  sub fl0
-  mvi stk 35000
-  psh acc
-  swp
-  sbi 1
-  jmp start
+  @macro{test acc}
+  fnc subaccby5
+  jnz start
+  jmp end
+
+subaccby5:
+  sbi 5
+  ret
 
 end:
   kil

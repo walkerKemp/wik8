@@ -1,7 +1,6 @@
 use std::ops::Range;
 
 const MAXMEM: i32 = 96006;
-
 pub struct Emulator {
   pub is_running: bool,
   pub is_killed: bool,
@@ -12,6 +11,7 @@ pub struct Emulator {
   pub stk: i32,
   pub fl0: i32,
   pub fl1: i32,
+
   pub mem: [i32; MAXMEM as usize],
   pub rom_range: Range<i32>,
   pub kbi_range: Range<i32>,
@@ -19,7 +19,6 @@ pub struct Emulator {
   pub ram_range: Range<i32>,
   pub mem_range: Range<i32>,
 }
-
 
 impl Emulator {
   pub fn new(rom: &Vec<i32>) -> Self {
@@ -55,7 +54,7 @@ impl Emulator {
     let inst = self.next();
 
     match inst {
-      0x20 => {},
+      0x00 => {},
       0x21 => {
         let dst = self.next();
         if self.can_mut(&dst) {
@@ -207,16 +206,16 @@ impl Emulator {
         if self.ram_range.contains(&self.stk) {
           self.mem[self.stk as usize] = num;
         } else {
-          panic!(" [!] Attempted write to invalid or read only memory.");
+          panic!(" [!] Attempted illegal write to read only or invalid memory.");
         }
-      }
+      },
       0x38 => {
         let dst = self.next();
         if self.can_mut(&dst) {
           if self.ram_range.contains(&self.stk) {
             self.mem[self.stk as usize] = *self.get_register(&dst);
           } else {
-            panic!(" [!] Attempted write to invalid or read only memory.");
+            panic!(" [!] Attempted illegal write to read only or invalid memory.");
           }
         }
       },
@@ -226,7 +225,7 @@ impl Emulator {
           if self.mem_range.contains(&self.stk) {
             *self.get_register(&dst) = self.mem[self.stk as usize];
           } else {
-            panic!(" [!] Attempted read from invalid memory.");
+            panic!(" [!] Attempted illegal read from invalid memory.");
           }
         }
       },
@@ -242,11 +241,12 @@ impl Emulator {
         self.pcc = off;
       },
       0x3d => {
-        self.pcc = self.fl0;
+        self.pcc = self.fl1;
       },
       0x3e | 0x3f | 0x40 | 0x41 => { unimplemented!(" [-] Rasterizer not implemented."); },
       0x42 => {
         self.is_killed = true;
+        self.is_running = false;
       }
       _ => panic!(" [!] Invalid opcode {}.", inst),
     }
